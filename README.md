@@ -40,7 +40,7 @@ wow-server-check --no-sound
 
 ## How it works
 
-Attempts a TCP connection to the WoW login server (`{region}.actual.battle.net:3724`). During maintenance, the server rejects connections. When it accepts one, the tool fires a sound alert and desktop notification, then exits.
+Attempts a TCP connection to the WoW login server (`{region}.actual.battle.net:1119`). During maintenance, the server rejects connections. When it accepts one, the tool fires a sound alert and desktop notification, then exits.
 
 ## Platform support
 

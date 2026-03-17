@@ -17,7 +17,7 @@ def test_check_server_returns_true_when_connection_succeeds():
         mock_sock = MagicMock()
         mock_conn.return_value = mock_sock
         assert check_server(region="us", timeout=5) is True
-        mock_conn.assert_called_once_with(("us.actual.battle.net", 3724), timeout=5)
+        mock_conn.assert_called_once_with(("us.actual.battle.net", 1119), timeout=5)
         mock_sock.close.assert_called_once()
 
 
@@ -45,4 +45,4 @@ def test_check_server_defaults_to_us_region():
         mock_sock = MagicMock()
         mock_conn.return_value = mock_sock
         check_server()
-        mock_conn.assert_called_once_with(("us.actual.battle.net", 3724), timeout=5)
+        mock_conn.assert_called_once_with(("us.actual.battle.net", 1119), timeout=5)

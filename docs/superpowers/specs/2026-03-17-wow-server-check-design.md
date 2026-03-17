@@ -12,7 +12,7 @@ WoW servers go down every Tuesday for maintenance. The estimated "back up" time 
 
 TCP connection probe to the WoW login server.
 
-- **Target:** `{region}.actual.battle.net` port `3724`
+- **Target:** `{region}.actual.battle.net` port `1119`
 - **Regions:** `us` (default), `eu`, `kr`, `tw`
 - **Method:** Open a TCP socket with a 5-second timeout
   - Connection accepted → servers are up

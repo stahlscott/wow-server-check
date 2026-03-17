@@ -21,8 +21,9 @@ def _play_sound_linux() -> None:
 
 
 def _notify_desktop_macos(message: str) -> None:
+    escaped = message.replace("\\", "\\\\").replace('"', '\\"')
     subprocess.run(
-        ["osascript", "-e", f'display notification "{message}" with title "WoW Server Check"'],
+        ["osascript", "-e", f'display notification "{escaped}" with title "WoW Server Check"'],
         check=False,
     )
 

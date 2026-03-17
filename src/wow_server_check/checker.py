@@ -7,7 +7,7 @@ REGION_HOSTS = {
     "tw": "tw.actual.battle.net",
 }
 
-PORT = 3724
+PORT = 1119
 
 
 def check_server(region: str = "us", timeout: int = 5) -> bool:
