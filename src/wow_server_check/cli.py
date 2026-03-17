@@ -50,20 +50,20 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
 def main() -> None:
     args = parse_args()
     region_upper = args.region.upper()
-    print(f"Checking WoW servers ({region_upper}) every {args.interval}s...")
+    print(f"Checking WoW servers ({region_upper}) every {args.interval}s...", flush=True)
 
     try:
         while True:
             timestamp = datetime.now().strftime("%H:%M:%S")
             if check_server(region=args.region):
-                print(f"[{timestamp}] Servers are UP!")
+                print(f"[{timestamp}] Servers are UP!", flush=True)
                 notify(
                     "WoW servers are UP! Time to play!",
                     sound=args.sound,
                     desktop=args.notify,
                 )
                 return
-            print(f"[{timestamp}] Servers are down...")
+            print(f"[{timestamp}] Servers are down...", flush=True)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         print("\nStopped. Bye!")
