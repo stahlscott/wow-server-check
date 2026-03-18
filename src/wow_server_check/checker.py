@@ -11,7 +11,9 @@ PORT = 1119
 
 
 def check_server(region: str = "us", timeout: int = 5) -> bool:
-    host = REGION_HOSTS[region]
+    host = REGION_HOSTS.get(region)
+    if host is None:
+        raise ValueError(f"Unknown region {region!r}. Valid regions: {list(REGION_HOSTS)}")
     try:
         conn = socket.create_connection((host, PORT), timeout=timeout)
         conn.close()
