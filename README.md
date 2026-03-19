@@ -5,13 +5,13 @@ A CLI tool that monitors World of Warcraft servers during weekly maintenance and
 ## Install
 
 ```bash
-pipx install git+https://github.com/YOUR_USERNAME/wow-server-check
+pipx install git+https://github.com/stahlscott/wow-server-check
 ```
 
 Or clone and install locally:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/wow-server-check
+git clone https://github.com/stahlscott/wow-server-check
 cd wow-server-check
 pip install .
 ```
