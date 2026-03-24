@@ -2,7 +2,7 @@
 
 A CLI tool that monitors World of Warcraft servers during weekly maintenance and alerts you the moment they come back online.
 
-Uses the official Blizzard Game Data API to check realm status — tracks your specific realm and overall server health, so you know when maintenance is truly over (not just a brief flicker).
+Uses the official Blizzard Game Data API to check realm status, so you know when maintenance is truly over (not just a brief flicker).
 
 ## Prerequisites
 
@@ -37,14 +37,11 @@ pip install .
 ## Usage
 
 ```bash
-# Default: check US servers (Sargeras) every 30 seconds
+# Default: check US servers every 30 seconds
 wow-server-check
 
-# Check a specific realm
-wow-server-check --realm Proudmoore
-
 # Check EU servers every 60 seconds
-wow-server-check --region eu --realm Ravencrest --interval 60
+wow-server-check --region eu --interval 60
 
 # Disable sound, only show desktop notification
 wow-server-check --no-sound
@@ -52,11 +49,11 @@ wow-server-check --no-sound
 
 Example output during maintenance:
 ```
-Checking WoW servers (US, realm: Sargeras) every 30s...
-[10:42:15] Servers are down... (12% up — Sargeras: DOWN)
-[10:42:45] Servers are down... (67% up — Sargeras: DOWN)
-[10:43:15] Almost there... (98% up — Sargeras: UP, waiting for all realms)
-[10:43:45] Servers are UP! (100% — Sargeras: UP)
+Checking WoW servers (US) every 30s...
+[10:42:15] Servers are down... (12% up)
+[10:42:45] Servers are down... (67% up)
+[10:43:15] Servers are down... (98% up)
+[10:43:45] Servers are UP! (100%)
 ```
 
 ## Options
@@ -64,7 +61,6 @@ Checking WoW servers (US, realm: Sargeras) every 30s...
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--region` | `us` | Server region: `us`, `eu`, `kr`, `tw` |
-| `--realm` | `Sargeras` | Realm name to monitor |
 | `--interval` | `30` | Seconds between checks (minimum: 10) |
 | `--sound` / `--no-sound` | on | Toggle alert sound |
 | `--notify` / `--no-notify` | on | Toggle desktop notification |
@@ -73,7 +69,7 @@ Checking WoW servers (US, realm: Sargeras) every 30s...
 
 ## How it works
 
-Queries the Blizzard Game Data API for connected realm status. Checks your specific realm and counts how many realms are UP across the region. Declares maintenance over only when **all realms are UP** — this avoids false positives from realms flickering up during rolling restarts.
+Queries the Blizzard Game Data API for connected realm status across the region. Declares maintenance over only when **all realms are UP** — this avoids false positives from realms flickering up during rolling restarts.
 
 ## Platform support
 

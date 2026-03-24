@@ -6,7 +6,6 @@ from datetime import datetime
 
 from wow_server_check.checker import (
     REGION_API_HOSTS,
-    DEFAULT_REALM,
     check_server,
     get_access_token,
 )
@@ -24,11 +23,6 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         choices=list(REGION_API_HOSTS.keys()),
         default="us",
         help="Server region (default: us)",
-    )
-    parser.add_argument(
-        "--realm",
-        default=DEFAULT_REALM,
-        help=f"Realm name to check (default: {DEFAULT_REALM})",
     )
     parser.add_argument(
         "--interval",
@@ -88,10 +82,7 @@ def main() -> None:
     client_id, client_secret = _resolve_credentials(args)
 
     region_upper = args.region.upper()
-    print(
-        f"Checking WoW servers ({region_upper}, realm: {args.realm}) every {args.interval}s...",
-        flush=True,
-    )
+    print(f"Checking WoW servers ({region_upper}) every {args.interval}s...", flush=True)
 
     try:
         token = get_access_token(client_id, client_secret)
@@ -103,18 +94,14 @@ def main() -> None:
         while True:
             timestamp = datetime.now().strftime("%H:%M:%S")
             try:
-                status = check_server(token=token, region=args.region, realm=args.realm)
+                status = check_server(token=token, region=args.region)
             except Exception as e:
                 print(f"[{timestamp}] Error checking servers: {e}", flush=True)
                 time.sleep(args.interval)
                 continue
 
             if status.all_up:
-                print(
-                    f"[{timestamp}] Servers are UP! "
-                    f"({status.pct_up}% — {args.realm}: UP)",
-                    flush=True,
-                )
+                print(f"[{timestamp}] Servers are UP! ({status.pct_up}%)", flush=True)
                 notify(
                     "WoW servers are UP! Time to play!",
                     sound=args.sound,
@@ -122,19 +109,10 @@ def main() -> None:
                 )
                 return
 
-            realm_label = "UP" if status.realm_up else "DOWN"
-            if status.realm_up:
-                print(
-                    f"[{timestamp}] Almost there... "
-                    f"({status.pct_up}% up — {args.realm}: UP, waiting for all realms)",
-                    flush=True,
-                )
-            else:
-                print(
-                    f"[{timestamp}] Servers are down... "
-                    f"({status.pct_up}% up — {args.realm}: {realm_label})",
-                    flush=True,
-                )
+            print(
+                f"[{timestamp}] Servers are down... ({status.pct_up}% up)",
+                flush=True,
+            )
             time.sleep(args.interval)
     except KeyboardInterrupt:
         print("\nStopped. Bye!")
