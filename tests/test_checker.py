@@ -1,48 +1,150 @@
+import json
 from unittest.mock import patch, MagicMock
-from wow_server_check.checker import check_server, REGION_HOSTS
+from wow_server_check.checker import (
+    check_server,
+    get_access_token,
+    RealmStatus,
+    REGION_API_HOSTS,
+    DEFAULT_REALM,
+)
 
 
-def test_region_hosts_contains_us():
-    assert "us" in REGION_HOSTS
-    assert REGION_HOSTS["us"] == "us.actual.battle.net"
+def test_region_api_hosts_contains_us():
+    assert "us" in REGION_API_HOSTS
+    assert REGION_API_HOSTS["us"] == "us.api.blizzard.com"
 
 
-def test_region_hosts_contains_all_regions():
+def test_region_api_hosts_contains_all_regions():
     for region in ("us", "eu", "kr", "tw"):
-        assert region in REGION_HOSTS
+        assert region in REGION_API_HOSTS
 
 
-def test_check_server_returns_true_when_connection_succeeds():
-    with patch("wow_server_check.checker.socket.create_connection") as mock_conn:
-        mock_sock = MagicMock()
-        mock_conn.return_value = mock_sock
-        assert check_server(region="us", timeout=5) is True
-        mock_conn.assert_called_once_with(("us.actual.battle.net", 1119), timeout=5)
-        mock_sock.close.assert_called_once()
+def test_default_realm_is_sargeras():
+    assert DEFAULT_REALM == "Sargeras"
 
 
-def test_check_server_returns_false_on_timeout():
-    with patch("wow_server_check.checker.socket.create_connection") as mock_conn:
-        import socket
-        mock_conn.side_effect = socket.timeout("timed out")
-        assert check_server(region="us", timeout=5) is False
+def test_realm_status_pct_up():
+    status = RealmStatus(realm_name="Sargeras", realm_up=True, total_up=75, total=83)
+    assert status.pct_up == 90
 
 
-def test_check_server_returns_false_on_connection_refused():
-    with patch("wow_server_check.checker.socket.create_connection") as mock_conn:
-        mock_conn.side_effect = ConnectionRefusedError("refused")
-        assert check_server(region="us", timeout=5) is False
+def test_realm_status_pct_up_zero_total():
+    status = RealmStatus(realm_name="Sargeras", realm_up=False, total_up=0, total=0)
+    assert status.pct_up == 0
 
 
-def test_check_server_returns_false_on_os_error():
-    with patch("wow_server_check.checker.socket.create_connection") as mock_conn:
-        mock_conn.side_effect = OSError("network unreachable")
-        assert check_server(region="us", timeout=5) is False
+def test_realm_status_all_up():
+    status = RealmStatus(realm_name="Sargeras", realm_up=True, total_up=83, total=83)
+    assert status.all_up is True
 
 
-def test_check_server_defaults_to_us_region():
-    with patch("wow_server_check.checker.socket.create_connection") as mock_conn:
-        mock_sock = MagicMock()
-        mock_conn.return_value = mock_sock
-        check_server()
-        mock_conn.assert_called_once_with(("us.actual.battle.net", 1119), timeout=5)
+def test_realm_status_not_all_up():
+    status = RealmStatus(realm_name="Sargeras", realm_up=True, total_up=80, total=83)
+    assert status.all_up is False
+
+
+def _mock_urlopen(responses):
+    """Helper that returns a mock urlopen which serves responses in order."""
+    call_count = [0]
+
+    def side_effect(req, timeout=None):
+        resp = MagicMock()
+        resp.read.return_value = json.dumps(responses[call_count[0]]).encode()
+        call_count[0] += 1
+        return resp
+
+    return side_effect
+
+
+def test_get_access_token():
+    token_response = {"access_token": "test-token-123", "expires_in": 86399}
+    with patch("wow_server_check.checker.urllib.request.urlopen") as mock_urlopen:
+        mock_resp = MagicMock()
+        mock_resp.read.return_value = json.dumps(token_response).encode()
+        mock_urlopen.return_value = mock_resp
+        token = get_access_token("my-id", "my-secret")
+        assert token == "test-token-123"
+
+
+def test_check_server_all_up():
+    realm_search_resp = {
+        "results": [{"data": {"status": {"type": "UP"}, "realms": [{"name": {"en_US": "Sargeras"}}]}}]
+    }
+    all_realms_resp = {
+        "pageCount": 1,
+        "results": [
+            {"data": {"status": {"type": "UP"}}},
+            {"data": {"status": {"type": "UP"}}},
+        ],
+    }
+
+    with patch("wow_server_check.checker.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = _mock_urlopen([realm_search_resp, all_realms_resp])
+        status = check_server(token="fake-token", region="us", realm="Sargeras")
+        assert status.realm_up is True
+        assert status.total_up == 2
+        assert status.total == 2
+        assert status.all_up is True
+
+
+def test_check_server_realm_down():
+    realm_search_resp = {
+        "results": [{"data": {"status": {"type": "DOWN"}, "realms": [{"name": {"en_US": "Sargeras"}}]}}]
+    }
+    all_realms_resp = {
+        "pageCount": 1,
+        "results": [
+            {"data": {"status": {"type": "UP"}}},
+            {"data": {"status": {"type": "DOWN"}}},
+            {"data": {"status": {"type": "DOWN"}}},
+        ],
+    }
+
+    with patch("wow_server_check.checker.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = _mock_urlopen([realm_search_resp, all_realms_resp])
+        status = check_server(token="fake-token", region="us", realm="Sargeras")
+        assert status.realm_up is False
+        assert status.total_up == 1
+        assert status.total == 3
+        assert status.all_up is False
+
+
+def test_check_server_realm_not_found():
+    realm_search_resp = {"results": []}
+    all_realms_resp = {
+        "pageCount": 1,
+        "results": [{"data": {"status": {"type": "UP"}}}],
+    }
+
+    with patch("wow_server_check.checker.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = _mock_urlopen([realm_search_resp, all_realms_resp])
+        status = check_server(token="fake-token", region="us", realm="FakeRealm")
+        assert status.realm_up is False
+        assert status.realm_name == "FakeRealm"
+
+
+def test_check_server_invalid_region():
+    import pytest
+    with pytest.raises(ValueError, match="Unknown region"):
+        check_server(token="fake-token", region="cn", realm="Sargeras")
+
+
+def test_check_server_multiple_pages():
+    realm_search_resp = {
+        "results": [{"data": {"status": {"type": "UP"}, "realms": [{"name": {"en_US": "Sargeras"}}]}}]
+    }
+    page1_resp = {
+        "pageCount": 2,
+        "results": [{"data": {"status": {"type": "UP"}}}],
+    }
+    page2_resp = {
+        "pageCount": 2,
+        "results": [{"data": {"status": {"type": "DOWN"}}}],
+    }
+
+    with patch("wow_server_check.checker.urllib.request.urlopen") as mock_urlopen:
+        mock_urlopen.side_effect = _mock_urlopen([realm_search_resp, page1_resp, page2_resp])
+        status = check_server(token="fake-token", region="us", realm="Sargeras")
+        assert status.total_up == 1
+        assert status.total == 2
+        assert status.all_up is False

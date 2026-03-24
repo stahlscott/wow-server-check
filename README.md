@@ -2,6 +2,24 @@
 
 A CLI tool that monitors World of Warcraft servers during weekly maintenance and alerts you the moment they come back online.
 
+Uses the official Blizzard Game Data API to check realm status — tracks your specific realm and overall server health, so you know when maintenance is truly over (not just a brief flicker).
+
+## Prerequisites
+
+You need a free Blizzard API key:
+
+1. Go to https://develop.battle.net/access/clients
+2. Log in with your Battle.net account
+3. Create a client (any name, redirect URL: `https://localhost`)
+4. Set environment variables:
+
+```bash
+export BLIZZARD_CLIENT_ID=your_client_id
+export BLIZZARD_CLIENT_SECRET=your_client_secret
+```
+
+Or pass them as flags: `--client-id` and `--client-secret`.
+
 ## Install
 
 ```bash
@@ -19,14 +37,26 @@ pip install .
 ## Usage
 
 ```bash
-# Default: check US servers every 30 seconds
+# Default: check US servers (Sargeras) every 30 seconds
 wow-server-check
 
+# Check a specific realm
+wow-server-check --realm Proudmoore
+
 # Check EU servers every 60 seconds
-wow-server-check --region eu --interval 60
+wow-server-check --region eu --realm Ravencrest --interval 60
 
 # Disable sound, only show desktop notification
 wow-server-check --no-sound
+```
+
+Example output during maintenance:
+```
+Checking WoW servers (US, realm: Sargeras) every 30s...
+[10:42:15] Servers are down... (12% up — Sargeras: DOWN)
+[10:42:45] Servers are down... (67% up — Sargeras: DOWN)
+[10:43:15] Almost there... (98% up — Sargeras: UP, waiting for all realms)
+[10:43:45] Servers are UP! (100% — Sargeras: UP)
 ```
 
 ## Options
@@ -34,13 +64,16 @@ wow-server-check --no-sound
 | Flag | Default | Description |
 |------|---------|-------------|
 | `--region` | `us` | Server region: `us`, `eu`, `kr`, `tw` |
+| `--realm` | `Sargeras` | Realm name to monitor |
 | `--interval` | `30` | Seconds between checks (minimum: 10) |
 | `--sound` / `--no-sound` | on | Toggle alert sound |
 | `--notify` / `--no-notify` | on | Toggle desktop notification |
+| `--client-id` | env var | Blizzard API client ID |
+| `--client-secret` | env var | Blizzard API client secret |
 
 ## How it works
 
-Attempts a TCP connection to the WoW login server (`{region}.actual.battle.net:1119`). During maintenance, the server rejects connections. When it accepts one, the tool fires a sound alert and desktop notification, then exits.
+Queries the Blizzard Game Data API for connected realm status. Checks your specific realm and counts how many realms are UP across the region. Declares maintenance over only when **all realms are UP** — this avoids false positives from realms flickering up during rolling restarts.
 
 ## Platform support
 
@@ -53,6 +86,7 @@ Attempts a TCP connection to the WoW login server (`{region}.actual.battle.net:1
 ## Development
 
 ```bash
+cp .env.example .env  # add your Blizzard API credentials
 pip install -e ".[dev]"
 pytest tests/ -v
 ```
