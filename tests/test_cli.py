@@ -1,6 +1,7 @@
+from datetime import datetime
 from unittest.mock import patch
 from wow_server_check.checker import RealmStatus
-from wow_server_check.cli import parse_args, main
+from wow_server_check.cli import parse_args, get_gradient_interval, main
 
 
 def test_parse_args_defaults():
@@ -9,6 +10,7 @@ def test_parse_args_defaults():
     assert args.interval == 30
     assert args.sound is True
     assert args.notify is True
+    assert args.expected_up_dt is None
 
 
 def test_parse_args_custom_region():
@@ -40,6 +42,57 @@ def test_parse_args_credentials():
     args = parse_args(["--client-id", "myid", "--client-secret", "mysecret"])
     assert args.client_id == "myid"
     assert args.client_secret == "mysecret"
+
+
+def test_parse_args_expected_up():
+    args = parse_args(["--expected-up", "14:00"])
+    assert args.expected_up == "14:00"
+    assert args.expected_up_dt is not None
+    assert args.expected_up_dt.hour == 14
+    assert args.expected_up_dt.minute == 0
+
+
+def test_parse_args_expected_up_invalid():
+    import pytest
+
+    with pytest.raises(SystemExit):
+        parse_args(["--expected-up", "not-a-time"])
+
+
+# --- Gradient interval tests ---
+
+
+def test_gradient_more_than_60_min_away():
+    expected = datetime(2026, 3, 24, 14, 0)
+    now = datetime(2026, 3, 24, 12, 0)  # 120 min away
+    assert get_gradient_interval(expected, now) == 300  # 5 min
+
+
+def test_gradient_30_to_60_min_away():
+    expected = datetime(2026, 3, 24, 14, 0)
+    now = datetime(2026, 3, 24, 13, 15)  # 45 min away
+    assert get_gradient_interval(expected, now) == 120  # 2 min
+
+
+def test_gradient_15_to_30_min_away():
+    expected = datetime(2026, 3, 24, 14, 0)
+    now = datetime(2026, 3, 24, 13, 40)  # 20 min away
+    assert get_gradient_interval(expected, now) == 60  # 1 min
+
+
+def test_gradient_less_than_15_min_away():
+    expected = datetime(2026, 3, 24, 14, 0)
+    now = datetime(2026, 3, 24, 13, 50)  # 10 min away
+    assert get_gradient_interval(expected, now) == 30  # 30 sec
+
+
+def test_gradient_past_expected_time():
+    expected = datetime(2026, 3, 24, 14, 0)
+    now = datetime(2026, 3, 24, 14, 30)  # 30 min past
+    assert get_gradient_interval(expected, now) == 30  # 30 sec
+
+
+# --- Main loop tests ---
 
 
 @patch("wow_server_check.cli.get_access_token", return_value="fake-token")

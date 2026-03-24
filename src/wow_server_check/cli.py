@@ -13,6 +13,23 @@ from wow_server_check.notifier import notify
 
 MINIMUM_INTERVAL = 10
 
+GRADIENT_TIERS = [
+    # (minutes_until_expected, interval_seconds)
+    (60, 300),   # > 60 min away: check every 5 min
+    (30, 120),   # 30–60 min away: check every 2 min
+    (15, 60),    # 15–30 min away: check every 1 min
+    (0, 30),     # < 15 min away: check every 30 sec
+]
+
+
+def get_gradient_interval(expected_up: datetime, now: datetime) -> int:
+    minutes_remaining = (expected_up - now).total_seconds() / 60
+    for threshold, interval in GRADIENT_TIERS:
+        if minutes_remaining > threshold:
+            return interval
+    # Past expected time
+    return GRADIENT_TIERS[-1][1]
+
 
 def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
@@ -29,6 +46,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         type=int,
         default=30,
         help=f"Seconds between checks (default: 30, minimum: {MINIMUM_INTERVAL})",
+    )
+    parser.add_argument(
+        "--expected-up",
+        default=None,
+        help="Expected up time in HH:MM format (local time). Enables gradient polling.",
     )
     parser.add_argument(
         "--sound",
@@ -59,6 +81,15 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         print(f"Warning: interval clamped to minimum of {MINIMUM_INTERVAL}s")
         args.interval = MINIMUM_INTERVAL
 
+    if args.expected_up is not None:
+        try:
+            parsed_time = datetime.strptime(args.expected_up, "%H:%M").time()
+            args.expected_up_dt = datetime.combine(datetime.today(), parsed_time)
+        except ValueError:
+            parser.error(f"Invalid time format '{args.expected_up}'. Use HH:MM (e.g., 14:00)")
+    else:
+        args.expected_up_dt = None
+
     return args
 
 
@@ -77,12 +108,25 @@ def _resolve_credentials(args: argparse.Namespace) -> tuple[str, str]:
     return client_id, client_secret
 
 
+def _format_interval(seconds: int) -> str:
+    if seconds >= 60:
+        return f"{seconds // 60}m"
+    return f"{seconds}s"
+
+
 def main() -> None:
     args = parse_args()
     client_id, client_secret = _resolve_credentials(args)
 
     region_upper = args.region.upper()
-    print(f"Checking WoW servers ({region_upper}) every {args.interval}s...", flush=True)
+    if args.expected_up_dt:
+        print(
+            f"Checking WoW servers ({region_upper}), "
+            f"expected up at {args.expected_up} (gradient polling)...",
+            flush=True,
+        )
+    else:
+        print(f"Checking WoW servers ({region_upper}) every {args.interval}s...", flush=True)
 
     try:
         token = get_access_token(client_id, client_secret)
@@ -92,7 +136,8 @@ def main() -> None:
 
     try:
         while True:
-            timestamp = datetime.now().strftime("%H:%M:%S")
+            now = datetime.now()
+            timestamp = now.strftime("%H:%M:%S")
             try:
                 status = check_server(token=token, region=args.region)
             except Exception as e:
@@ -109,10 +154,20 @@ def main() -> None:
                 )
                 return
 
-            print(
-                f"[{timestamp}] Servers are down... ({status.pct_up}% up)",
-                flush=True,
-            )
-            time.sleep(args.interval)
+            if args.expected_up_dt:
+                interval = get_gradient_interval(args.expected_up_dt, now)
+                print(
+                    f"[{timestamp}] Servers are down... "
+                    f"({status.pct_up}% up, next check in {_format_interval(interval)})",
+                    flush=True,
+                )
+            else:
+                interval = args.interval
+                print(
+                    f"[{timestamp}] Servers are down... ({status.pct_up}% up)",
+                    flush=True,
+                )
+
+            time.sleep(interval)
     except KeyboardInterrupt:
         print("\nStopped. Bye!")
