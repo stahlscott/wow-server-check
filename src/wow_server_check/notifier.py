@@ -1,6 +1,9 @@
+import json
+import os
 import platform
 import subprocess
 import time
+import urllib.request
 
 
 def _play_sound_macos() -> None:
@@ -35,8 +38,30 @@ def _notify_desktop_linux(message: str) -> None:
     )
 
 
-def notify(message: str, sound: bool = True, desktop: bool = True) -> None:
+def _notify_discord(message: str, webhook_url: str, role_id: str | None = None) -> None:
+    content = f"<@&{role_id}> {message}" if role_id else message
+    payload = json.dumps({"content": content}).encode()
+    req = urllib.request.Request(
+        webhook_url,
+        data=payload,
+        headers={"Content-Type": "application/json"},
+    )
+    try:
+        urllib.request.urlopen(req, timeout=10)
+    except Exception:
+        pass
+
+
+def notify(message: str, sound: bool = True, desktop: bool = True, discord: bool = True) -> None:
     system = platform.system()
+
+    if desktop:
+        if system == "Darwin":
+            _notify_desktop_macos(message)
+        elif system == "Linux":
+            _notify_desktop_linux(message)
+        else:
+            print(f"[WoW Server Check] {message} (desktop notifications unsupported on {system})")
 
     if sound:
         if system == "Darwin":
@@ -46,10 +71,8 @@ def notify(message: str, sound: bool = True, desktop: bool = True) -> None:
         else:
             print("\a", end="", flush=True)
 
-    if desktop:
-        if system == "Darwin":
-            _notify_desktop_macos(message)
-        elif system == "Linux":
-            _notify_desktop_linux(message)
-        else:
-            print(f"[WoW Server Check] {message} (desktop notifications unsupported on {system})")
+    if discord:
+        webhook_url = os.environ.get("DISCORD_WEBHOOK_URL")
+        if webhook_url:
+            role_id = os.environ.get("DISCORD_ROLE_ID") or None
+            _notify_discord(message, webhook_url, role_id=role_id)

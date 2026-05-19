@@ -15,10 +15,10 @@ MINIMUM_INTERVAL = 10
 
 GRADIENT_TIERS = [
     # (minutes_until_expected, interval_seconds)
-    (60, 300),   # > 60 min away: check every 5 min
-    (30, 120),   # 30–60 min away: check every 2 min
-    (15, 60),    # 15–30 min away: check every 1 min
-    (0, 30),     # < 15 min away: check every 30 sec
+    (60, 150),   # > 60 min away: check every 2.5 min
+    (30, 60),    # 30–60 min away: check every 1 min
+    (15, 30),    # 15–30 min away: check every 30 sec
+    (0, 15),     # < 15 min away: check every 15 sec
 ]
 
 
@@ -63,6 +63,12 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action=argparse.BooleanOptionalAction,
         default=True,
         help="Show desktop notification (default: on)",
+    )
+    parser.add_argument(
+        "--discord",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="Send Discord notification if DISCORD_WEBHOOK_URL is set (default: on)",
     )
     parser.add_argument(
         "--client-id",
@@ -151,6 +157,7 @@ def main() -> None:
                     "WoW servers are UP! Time to play!",
                     sound=args.sound,
                     desktop=args.notify,
+                    discord=args.discord,
                 )
                 return
 

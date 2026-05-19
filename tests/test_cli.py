@@ -38,6 +38,16 @@ def test_parse_args_no_notify():
     assert args.notify is False
 
 
+def test_parse_args_discord_default_on():
+    args = parse_args([])
+    assert args.discord is True
+
+
+def test_parse_args_no_discord():
+    args = parse_args(["--no-discord"])
+    assert args.discord is False
+
+
 def test_parse_args_credentials():
     args = parse_args(["--client-id", "myid", "--client-secret", "mysecret"])
     assert args.client_id == "myid"
@@ -65,31 +75,31 @@ def test_parse_args_expected_up_invalid():
 def test_gradient_more_than_60_min_away():
     expected = datetime(2026, 3, 24, 14, 0)
     now = datetime(2026, 3, 24, 12, 0)  # 120 min away
-    assert get_gradient_interval(expected, now) == 300  # 5 min
+    assert get_gradient_interval(expected, now) == 150  # 2.5 min
 
 
 def test_gradient_30_to_60_min_away():
     expected = datetime(2026, 3, 24, 14, 0)
     now = datetime(2026, 3, 24, 13, 15)  # 45 min away
-    assert get_gradient_interval(expected, now) == 120  # 2 min
+    assert get_gradient_interval(expected, now) == 60  # 1 min
 
 
 def test_gradient_15_to_30_min_away():
     expected = datetime(2026, 3, 24, 14, 0)
     now = datetime(2026, 3, 24, 13, 40)  # 20 min away
-    assert get_gradient_interval(expected, now) == 60  # 1 min
+    assert get_gradient_interval(expected, now) == 30  # 30 sec
 
 
 def test_gradient_less_than_15_min_away():
     expected = datetime(2026, 3, 24, 14, 0)
     now = datetime(2026, 3, 24, 13, 50)  # 10 min away
-    assert get_gradient_interval(expected, now) == 30  # 30 sec
+    assert get_gradient_interval(expected, now) == 15  # 15 sec
 
 
 def test_gradient_past_expected_time():
     expected = datetime(2026, 3, 24, 14, 0)
     now = datetime(2026, 3, 24, 14, 30)  # 30 min past
-    assert get_gradient_interval(expected, now) == 30  # 30 sec
+    assert get_gradient_interval(expected, now) == 15  # 15 sec
 
 
 # --- Main loop tests ---
