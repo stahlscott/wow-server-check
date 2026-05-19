@@ -20,6 +20,26 @@ export BLIZZARD_CLIENT_SECRET=your_client_secret
 
 Or pass them as flags: `--client-id` and `--client-secret`.
 
+### Discord notifications (optional)
+
+Get notified in a Discord channel when servers come back up:
+
+1. In your Discord server, go to **Server Settings > Integrations > Webhooks**
+2. Create a webhook and choose the target channel
+3. Copy the webhook URL and set:
+
+```bash
+export DISCORD_WEBHOOK_URL=https://discord.com/api/webhooks/your/webhook/url
+```
+
+To mention a role (e.g. `@servers-up`), enable Developer Mode in Discord, right-click the role, copy the ID, and set:
+
+```bash
+export DISCORD_ROLE_ID=123456789
+```
+
+If `DISCORD_WEBHOOK_URL` is not set, Discord notifications are silently skipped. Use `--no-discord` to disable without removing the env var.
+
 ## Install
 
 ```bash
@@ -45,6 +65,9 @@ wow-server-check --region eu --interval 60
 
 # Disable sound, only show desktop notification
 wow-server-check --no-sound
+
+# Gradient polling: checks less frequently when far from expected uptime
+wow-server-check --expected-up 13:00
 ```
 
 Example output during maintenance:
@@ -62,8 +85,10 @@ Checking WoW servers (US) every 30s...
 |------|---------|-------------|
 | `--region` | `us` | Server region: `us`, `eu`, `kr`, `tw` |
 | `--interval` | `30` | Seconds between checks (minimum: 10) |
+| `--expected-up` | none | Expected up time in `HH:MM` (local time). Enables gradient polling |
 | `--sound` / `--no-sound` | on | Toggle alert sound |
 | `--notify` / `--no-notify` | on | Toggle desktop notification |
+| `--discord` / `--no-discord` | on | Toggle Discord notification (requires `DISCORD_WEBHOOK_URL`) |
 | `--client-id` | env var | Blizzard API client ID |
 | `--client-secret` | env var | Blizzard API client secret |
 
